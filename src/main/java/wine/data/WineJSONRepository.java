@@ -2,12 +2,12 @@ package wine.data;
 
 import com.github.cliftonlabs.json_simple.*;
 import wine.exceptions.WineAppException;
+import wine.processors.WineFileProcessor;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -53,14 +53,13 @@ public class WineJSONRepository {
                 // In this case, the JSONArray object's stream() method is defined
                 // on the underlying Collection interface. As such, it is necessary
                 // to cast the result of calling stream() to a Stream<JSONObject>
-                wineDetailsList = ((Stream<Object> ) jsonEntries.stream())
+                wineDetailsList =  jsonEntries.stream()
                         .map(this::toWineDetails)
                         //.limit(10)
                         .collect(Collectors.toList());
             }
-            //System.out.println("Read file: " + obj);
         } catch (IOException | JsonException ex) {
-            ex.printStackTrace();
+            throw new WineAppException("An exception was caught while processing the Wine file: " + ex);
         }
     }
 
@@ -77,7 +76,7 @@ public class WineJSONRepository {
             writer.write(jsonArray.toJson());
             writer.flush();
         } catch (IOException ex) {
-            ex.printStackTrace();
+            throw new WineAppException("An exception was caught while writing to the Wine file: " + ex);
         }
     }
 
@@ -121,7 +120,7 @@ public class WineJSONRepository {
 
         // Generate ratings map from a single value - points
         Long rating = jsonObject.getLong(Jsoner.mintJsonKey("points", 85));
-        Map<String, Integer>  ratings = getRatings(rating);
+        Map<String, Integer>  ratings = WineFileProcessor.generateRatings(rating);
 
         // Build WineDetails object and populate it
         WineDetails newWine = new WineDetails(uuid.toString(), (String) jsonObject.get("title"),
@@ -132,65 +131,6 @@ public class WineJSONRepository {
         newWine.setDescription((String) jsonObject.get("description"));
         newWine.setVariety((String) jsonObject.get("variety"));
         return newWine;
-    }
-
-    /**
-     * Generate an artificial (generated) list of ratings based on a single
-     * core rating. The algorithm calculates a series of random numbers all
-     * deviating around the supplied rating. It also obtains a random rating
-     * code representing a set of tasting agencies. It then builds a map
-     * of these codes and associated generated rating.
-     *
-     * @param initialRating Initial rating value read from the wine entry
-     * @return A map containing rating codes and associated ratings
-     */
-    private Map<String, Integer> getRatings(Long initialRating) {
-        Map<String, Integer> stringMap = new HashMap<>();
-        int baseRating = 85;
-        if (initialRating != null)
-            baseRating = initialRating.intValue();
-
-        for (int rating : generateRandomRatings(baseRating)) {
-            stringMap.put(getRandomTaster(), rating);
-        }
-        return stringMap;
-
-    }
-
-    /**
-     * Given a provided rating code, generate a series of random ratings (between
-     * 2 and 4) all of which deviate a maximum of 4 points from the original.
-     *
-     * @param baseRating Initial rating value read from the wine entry
-     * @return An array of randomly generating ratings
-     */
-    private int[] generateRandomRatings(int baseRating) {
-        Random random = new Random();
-        int numberOfNumbers = random.nextInt(3) + 2; // Generates 2, 3, or 4
-
-        int[] numbers = new int[numberOfNumbers];
-
-        for (int i = 0; i < numberOfNumbers; i++) {
-            int deviation = random.nextInt(9) - 4; // Generates a deviation between -4 and 4
-            int generatedNumber = baseRating + deviation;
-            while (generatedNumber > 99)
-                generatedNumber--;
-
-            numbers[i] = generatedNumber;
-        }
-        return numbers;
-    }
-
-    /**
-     * Randomly produce a code from the initial list of codes. It simply picks a
-     * random number between 0 and the number of entries in the list and pulls that
-     * entry
-     *
-     * @return A randomly selected code from the list of codes.
-     */
-    private String getRandomTaster() {
-        int randomIndex = new Random().nextInt(ratingCodes.size());
-        return ratingCodes.get(randomIndex);
     }
 
 }
