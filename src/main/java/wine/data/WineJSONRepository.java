@@ -73,7 +73,7 @@ public class WineJSONRepository {
                 JsonObject json = fromWineDetails(item);
                 jsonArray.add(json);
             }
-            writer.write(jsonArray.toJson());
+            Jsoner.serialize(jsonArray, writer);
             writer.flush();
         } catch (IOException ex) {
             throw new WineAppException("An exception was caught while writing to the Wine file: " + ex);
